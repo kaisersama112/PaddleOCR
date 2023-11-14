@@ -1,4 +1,3 @@
-[English](README_en.md) | 简体中文 | [हिन्दी](./doc/doc_i18n/README_हिन्द.md) | [日本語](./doc/doc_i18n/README_日本語.md) | [한국인](./doc/doc_i18n/README_한국어.md) | [Pу́сский язы́к](./doc/doc_i18n/README_Ру́сский_язы́к.md)
 
 <p align="center">
  <img src="./doc/PaddleOCR_log.png" align="middle" width = "600"/>
@@ -25,35 +24,6 @@ PaddleOCR旨在打造一套丰富、领先、且实用的OCR工具库，助力�
     <img src="./doc/imgs_results/ch_ppocr_mobile_v2.0/00006737.jpg" width="800">
 </div>
 
-## 📣 近期更新
-- **🔥2023.8.7 发布 PaddleOCR [release/2.7](https://github.com/PaddlePaddle/PaddleOCR/tree/release/2.7)**
-    - 发布[PP-OCRv4](./doc/doc_ch/PP-OCRv4_introduction.md)，提供mobile和server两种模型
-      - PP-OCRv4-mobile：速度可比情况下，中文场景效果相比于PP-OCRv3再提升4.5%，英文场景提升10%，80语种多语言模型平均识别准确率提升8%以上
-      - PP-OCRv4-server：发布了目前精度最高的OCR模型，中英文场景上检测模型精度提升4.9%， 识别模型精度提升2%
-        可参考[快速开始](./doc/doc_ch/quickstart.md) 一行命令快速使用，同时也可在飞桨AI套件(PaddleX)中的[通用OCR产业方案](https://aistudio.baidu.com/aistudio/modelsdetail?modelId=286)中低代码完成模型训练、推理、高性能部署全流程
-    - 发布[PP-ChatOCR](https://aistudio.baidu.com/aistudio/modelsdetail?modelId=332) ,使用融合PP-OCR模型和文心大模型的通用场景关键信息抽取全新方案
-- 🔨**2022.11 新增实现[4种前沿算法](doc/doc_ch/algorithm_overview.md)**：文本检测 [DRRG](doc/doc_ch/algorithm_det_drrg.md),  文本识别 [RFL](doc/doc_ch/algorithm_rec_rfl.md), 文本超分[Text Telescope](doc/doc_ch/algorithm_sr_telescope.md)，公式识别[CAN](doc/doc_ch/algorithm_rec_can.md)
-- **2022.10 优化[JS版PP-OCRv3模型](./deploy/paddlejs/README_ch.md)**：模型大小仅4.3M，预测速度提升8倍，配套web demo开箱即用
-- **💥 直播回放：PaddleOCR研发团队详解PP-StructureV2优化策略**。微信扫描[下方二维码](#开源社区)，关注公众号并填写问卷后进入官方交流群，获取直播回放链接与20G重磅OCR学习大礼包（内含PDF转Word应用程序、10种垂类模型、《动手学OCR》电子书等）
-- **🔥2022.8.24 发布 PaddleOCR [release/2.6](https://github.com/PaddlePaddle/PaddleOCR/tree/release/2.6)**
-  - 发布[PP-StructureV2](./ppstructure/README_ch.md)，系统功能性能全面升级，适配中文场景，新增支持[版面复原](./ppstructure/recovery/README_ch.md)，支持**一行命令完成PDF转Word**；
-  - [版面分析](./ppstructure/layout/README_ch.md)模型优化：模型存储减少95%，速度提升11倍，平均CPU耗时仅需41ms；
-  - [表格识别](./ppstructure/table/README_ch.md)模型优化：设计3大优化策略，预测耗时不变情况下，模型精度提升6%；
-  - [关键信息抽取](./ppstructure/kie/README_ch.md)模型优化：设计视觉无关模型结构，语义实体识别精度提升2.8%，关系抽取精度提升9.1%。
-- 🔥**2022.8 发布 [OCR场景应用集合](./applications)**：包含数码管、液晶屏、车牌、高精度SVTR模型、手写体识别等**9个垂类模型**，覆盖通用，制造、金融、交通行业的主要OCR垂类应用。
-
-> [更多](./doc/doc_ch/update.md)
-
-## 🌟 特性
-
-支持多种OCR相关前沿算法，在此基础上打造产业级特色模型[PP-OCR](./doc/doc_ch/ppocr_introduction.md)、[PP-Structure](./ppstructure/README_ch.md)和[PP-ChatOCR](https://aistudio.baidu.com/aistudio/projectdetail/6488689)，并打通数据生产、模型训练、压缩、预测部署全流程。
-
-<div align="center">
-    <img src="https://raw.githubusercontent.com/tink2123/test/master/ppocrv4.png">
-</div>
-
-> 上述内容的使用方法建议从文档教程中的快速开始体验
-
 
 ## ⚡ 快速开始
 
@@ -79,16 +49,7 @@ PaddleOCR旨在打造一套丰富、领先、且实用的OCR工具库，助力�
 
 PaddleX官网地址：https://www.paddlepaddle.org.cn/paddle/paddleX
 
-微信扫描下面二维码添加运营同学，并回复【paddlex】，运营同学会邀请您加入官方交流群，获得更高效的问题答疑。
 
-<div align="center">
-<img src="https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/dygraph/doc/joinus_paddlex.jpg"  width = "150" height = "150",caption='' />
-<p>飞桨AI套件【PaddleX】技术交流群二维码</p>
-</div>
-
-<a name="电子书"></a>
-## 📚《动手学OCR》电子书
-- [《动手学OCR》电子书](./doc/doc_ch/ocr_book.md)
 
 <a name="开源共建"></a>
 ## 🚀 开源共建
