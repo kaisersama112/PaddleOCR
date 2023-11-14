@@ -3,12 +3,9 @@ import os
 import cv2
 import pandas as pd
 import numpy as np
-from skimage import morphology
-
-import paddle
 from paddleocr import PaddleOCR
 
-ocr = PaddleOCR(use_angle_cls=True, lang="ch")
+ocr = PaddleOCR(use_angle_cls=True, lang="ch", rec_model_dir="./inference/ch_PP-OCRv4_rec_infer")
 
 
 class TableOCR(object):
@@ -39,22 +36,17 @@ class TableOCR(object):
         从灰度图获取表格坐标，[[右下→左下→左上→右上],..]
         边缘检测+膨胀---》找最外围轮廓点，根据面积筛选---》根据纵坐标排序---》计算轮廓的四个点，再次筛选
         @param gray:灰度图 如果是二值图会报错
-        @return:
+        @return:image
         '''
-
         canny = cv2.Canny(gray, 200, 255)  # 第一个阈值和第二个阈值
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         canny = cv2.dilate(canny, kernel)
-
         contours, _ = cv2.findContours(canny, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
         if not min_table_area:
             min_table_area = gray.shape[0] * gray.shape[1] * 0.01  # 50000  # 最小的矩形面积阈值
         candidate_table = [cnt for cnt in contours if cv2.contourArea(cnt) > min_table_area]  # 计算该轮廓的面积
         candidate_table = sorted(candidate_table, key=cv2.contourArea, reverse=True)
-
         area_list = [cv2.contourArea(cnt) for cnt in candidate_table]
-
         table = []
         for i in range(len(candidate_table)):
             # 遍历所有轮廓
@@ -66,9 +58,7 @@ class TableOCR(object):
             box = cv2.boxPoints(rect)
             box = np.int0(box)
             sorted_box = self.get_sorted_rect(box)
-
             result = [sorted_box[2], sorted_box[3], sorted_box[0], sorted_box[1]]  # 右下 左下 左上 右上
-
             result = [x.tolist() for x in result]
             table.append(result)
 
@@ -77,11 +67,11 @@ class TableOCR(object):
     def perTran(self, image, rect):
         '''
         做透视变换
-        image 图像
-        rect  四个顶点位置:左上 右上 右下 左下
+        @params:image 图像
+                rect  四个顶点位置:左上 右上 右下 左下
+        @return:image
         '''
-
-        tl, tr, br, bl = rect  # 左下 右下  左上 右上 || topleft topright 左上 右上 右下 左下
+        tl, tr, br, bl = rect
         # 计算宽度
         widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
         widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
@@ -107,142 +97,104 @@ class TableOCR(object):
         merge = cv2.cvtColor(merge, cv2.COLOR_BGR2GRAY)
         return merge
 
+    def sort_cells(self, cells_coordinates, vertical_error=7):
+        sorted_cells = sorted(cells_coordinates, key=lambda x: x['y'])
+        rows = []
+        current_row = [sorted_cells[0]]
+        for cell in sorted_cells[1:]:
+            # 允许一定的垂直误差
+            if abs(cell['y'] - current_row[-1]['y']) <= vertical_error:
+                current_row.append(cell)
+            else:
+                rows.append(current_row)
+                current_row = [cell]
+        rows.append(current_row)
+        sorted_rows = [sorted(row, key=lambda x: x['x']) for row in rows]
+        return sorted_rows
+
     def recognize_bgkx(self, binary):
         rows, cols = binary.shape
-        scale = 40  # 值越小 横线越少 40
-        # 自适应获取核值
-        # 识别横线:
+        scale = 40
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (cols // scale, 1))
-        # 矩形
-        # binary = self.fastNlMeansDenoisingColored(binary)
-        # cv2.imshow("dst1", binary)
-        # cv2.waitKey()
-        eroded = cv2.erode(binary, kernel, iterations=1)  # 腐蚀
-        dilated_col = cv2.dilate(eroded, kernel, iterations=1)  # 膨胀
-        # ------------------------------------
-        # 过滤掉较短的横线
+        eroded = cv2.erode(binary, kernel, iterations=1)
+        dilated_col = cv2.dilate(eroded, kernel, iterations=1)
         contours_col, _ = cv2.findContours(dilated_col, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         filtered_contours_col = [cnt for cnt in contours_col if cv2.arcLength(cnt, True) > 150]
-        # 识别竖线：
         scale = 30
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, rows // scale))
         eroded = cv2.erode(binary, kernel, iterations=1)
         dilated_row = cv2.dilate(eroded, kernel, iterations=1)
-        # 过滤掉较短的竖线
+
         contours_row, _ = cv2.findContours(dilated_row, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         filtered_contours_row = [cnt for cnt in contours_row if cv2.arcLength(cnt, True) > 150]
-        # 将过滤后的横竖线合并
+
         dilated_col_filtered = np.zeros_like(dilated_col)
         cv2.drawContours(dilated_col_filtered, filtered_contours_col, -1, (255), thickness=1)
         dilated_row_filtered = np.zeros_like(dilated_row)
         cv2.drawContours(dilated_row_filtered, filtered_contours_row, -1, (255), thickness=1)
         print(dilated_col_filtered)
-        # -----------------------------
-        # cv2.imshow("dilated_col_filtered", dilated_col_filtered)
-        # cv2.waitKey(0)
-        # cv2.imshow("dilated_row_filtered", dilated_row_filtered)
-        # cv2.waitKey(0)
-        # --------------------------------
+
         # bitwise_and = cv2.bitwise_and(dilated_col_filtered, dilated_row_filtered)
         bitwise_and = cv2.bitwise_and(dilated_col_filtered, dilated_row_filtered)
         kernel = np.ones((3, 3), np.uint8)
         bitwise_and = cv2.dilate(bitwise_and, kernel, iterations=1)
-        # cv2.imshow("excel_bitwise_and", bitwise_and)
-        #  cv2.waitKey()
+        bitwise_and = cv2.dilate(bitwise_and, kernel, iterations=2)  # 膨胀
+
         # 标识表格轮廓
-        merge = cv2.add(dilated_col_filtered, dilated_row_filtered)  # 进行图片的加和
-        eroded = cv2.dilate(merge, kernel, iterations=1)  # 膨胀
-        merge = cv2.erode(eroded, kernel, iterations=1)  # 腐蚀
-        print("merge",merge)
+        merge = cv2.add(dilated_col_filtered, dilated_row_filtered)
+        eroded = cv2.dilate(merge, kernel, iterations=1)
+        merge = cv2.erode(eroded, kernel, iterations=1)
+        merge = cv2.dilate(merge, kernel, iterations=2)
 
-        # cv2.imshow("entire_excel_contour", merge)
-        #  cv2.waitKey()
-        #   cv2.imshow("binary", binary)
-        #  cv2.waitKey()
-        # 两张图片进行减法运算，去掉表格框线
-        merge2 = cv2.subtract(binary, merge)
-        # cv2.imshow("binary_sub_excel_rect", merge2)
-        #  cv2.waitKey()
-        # new_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
-        # erode_image = cv2.morphologyEx(merge2, cv2.MORPH_OPEN, new_kernel)
+        contours, hierarchy = cv2.findContours(merge, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        cells_coordinates = []
+        img = cv2.imread("../gray_z.png")
+        for i, contour in enumerate(contours):
+            hierarchy_info = hierarchy[0][i]
+            if hierarchy_info[2] == -1:
+                x, y, w, h = cv2.boundingRect(contour)
+                area = cv2.contourArea(contour)
+                print(area)
+                if area > 250:
+                    cells_coordinates.append({
+                        'x': x,
+                        'y': y,
+                        'width': w,
+                        'height': h,
+                        'original_position': (x, y, x + w, y + h)
+                    })
+                    color = tuple(np.random.randint(0, 255, 3).tolist())
+                    cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
+        cv2.imwrite('../marked_image.png', img)
+        sorted_cells = self.sort_cells(cells_coordinates)
+        return sorted_cells
 
-        # cv2.imshow('erode_image2', erode_image)
-        # cv2.waitKey()
-        # erode_image = self.fastNlMeansDenoisingColored(erode_image)
-        # cv2.imshow("erode_image2qqqq", erode_image)
-        # cv2.waitKey()
-        # merge3 = cv2.add(erode_image, bitwise_and)
-        # cv2.imshow('merge3', merge3)
-        # cv2.waitKey()
-        """
-            这里获取单元格有问题
-            1. 表格存在畸形 如果需要调整 
-            2. 对于异型表格有局限性
-        """
-        # 将焦点标识取出来
-        ys, xs = np.where(bitwise_and > 0)
-
-
-        # 横纵坐标数组
-        y_point_arr = []
-        x_point_arr = []
-        # 通过排序，排除掉相近的像素点，只取相近值的最后一点
-        # 这个10就是两个像素点的距离，不是固定的，根据不同的图片会有调整，基本上为单元格表格的高度（y坐标跳变）和长度（x坐标跳变）
-        i = 0
-        sort_x_point = np.sort(list(set(xs)))
-        print(sort_x_point)
-        for i in range(len(sort_x_point) - 1):
-            print()
-            if sort_x_point[i + 1] - sort_x_point[i] > 50:
-                x_point_arr.append(sort_x_point[i])
-            i = i + 1
-        # 要将最后一个点加入
-        x_point_arr.append(sort_x_point[i])
-
-        i = 0
-        sort_y_point = np.sort(list(set(ys)))
-        print(np.sort(ys))
-        for i in range(len(sort_y_point) - 1):
-            if (sort_y_point[i + 1] - sort_y_point[i] > 30):
-                y_point_arr.append(sort_y_point[i])
-            i = i + 1
-        y_point_arr.append(sort_y_point[i])
-        print(len(x_point_arr))
-        print(len(y_point_arr))
-        return x_point_arr, y_point_arr
-
-    def recognize_text_by_loop(self, gray, x_point_arr, y_point_arr):
-        data = [[] for i in range(len(y_point_arr))]
-        for i in range(len(y_point_arr) - 1):
-            for j in range(len(x_point_arr) - 1):
-                cell = gray[
-                       y_point_arr[i]:y_point_arr[i + 1],
-                       x_point_arr[j]:x_point_arr[j + 1]
-                       ]
-                if cell is not None:
-                    print(cell)
-                    result = ocr.ocr(cell)
-                    print(f"Length of result: {len(result)}")  # 打印result列表的长度
-                    cv2.imshow("cell", cell)
-                  #  cv2.waitKey()
-                    for idx, item in enumerate(result):
-                        print(f"Element {idx}: {item}")  # 打印result列表中每个元素的内容
-                    print("result:", result)
-                    text1 = ""
-                    if result[0]:
-                        if len(result) > 1:
-                            for resulti in result:
-                                text1 += resulti[-1][0]
-                        else:
-                            for resulti in result:
-                                for resultj in resulti:
-                                    text1 += resultj[-1][0]
-                    print("内容：", text1)
-                    data[i].append(text1)  # 将坐标信息添加到data中
+    def recognize_text_by_loop(self, gray, cells_coordinates):
+        print(cells_coordinates)
+        data = [[] for i in range(len(cells_coordinates))]
+        for i in range(len(cells_coordinates)):
+            for j in range(len(cells_coordinates[i])):
+                item = cells_coordinates[i][j]
+                cell_region = gray[item['y']:item['y'] + item['height'],
+                              item['x']:item['x'] + item['width']]
+                cv2.imshow('cell_region', cell_region)
+                cv2.waitKey()
+                result = ocr.ocr(cell_region)
+                text = ""
+                if result[0]:
+                    if len(result) > 1:
+                        for resulti in result:
+                            text += resulti[-1][0]
+                    else:
+                        for resulti in result:
+                            for resultj in resulti:
+                                text += resultj[-1][0]
+                    data[i].append(text)
                 else:
-                    data[i].append('')
+                    data[i].append("")
         print(data)
-        df = pd.DataFrame(data[1:-1], columns=data[0])
+        df = pd.DataFrame(data)
+        print(df)
         return df
 
     def ocr(self, img_file):
@@ -254,20 +206,16 @@ class TableOCR(object):
             print("No table found in the image.")
             return
         print(rect)
-        sorted_rect = self.get_sorted_rect(rect[0])  # 如果有多个table 可以循环
+        sorted_rect = self.get_sorted_rect(rect[0])
         gray_z = self.perTran(gray, sorted_rect)
-        # cv2.imshow("gray_z", gray_z)
-        # cv2.waitKey()
+        cv2.imwrite('../gray_z.png', gray_z)
         binary_z = cv2.adaptiveThreshold(~gray_z, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                          cv2.THRESH_BINARY, 15, -5)
-        # print(binary_z)
-        # cv2.imshow("binary_z", binary_z)
-        # cv2.waitKey()
-        x_point_arr, y_point_arr = self.recognize_bgkx(binary_z)
-        df = self.recognize_text_by_loop(gray_z, x_point_arr, y_point_arr)
-        print(self.result_file)
-        df.to_excel(self.result_file, index=False)
+        cells_coordinates = self.recognize_bgkx(binary_z)
+        df = self.recognize_text_by_loop(gray_z, cells_coordinates)
+        # print(self.result_file)
+        df.to_excel(self.result_file, index=False, header=False)
 
 
-tableOCR = TableOCR(result_file='to_excel/555.xlsx')
-tableOCR.ocr('./test_image/555.jpg')
+tableOCR = TableOCR(result_file='to_excel/14120012.xlsx')
+tableOCR.ocr('./test_image/14120012.jpg')

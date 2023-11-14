@@ -6,7 +6,9 @@ import numpy as np
 from skimage import morphology
 import paddle
 from paddleocr import PaddleOCR
-ocr = PaddleOCR(use_angle_cls=True, lang="ch",rec_model_dir="./inference/ch_PP-OCRv4_rec_infer")
+
+ocr = PaddleOCR(use_angle_cls=True, lang="ch", rec_model_dir="./inference/ch_PP-OCRv4_rec_infer")
+
 
 class TableOCR(object):
     def __init__(self, result_file):
@@ -150,7 +152,7 @@ class TableOCR(object):
         merge = cv2.add(dilated_col_filtered, dilated_row_filtered)  # 进行图片的加和
         eroded = cv2.dilate(merge, kernel, iterations=1)  # 膨胀
         merge = cv2.erode(eroded, kernel, iterations=1)  # 腐蚀
-        print("merge",merge)
+        print("merge", merge)
 
         # cv2.imshow("entire_excel_contour", merge)
         # cv2.waitKey()
@@ -178,7 +180,6 @@ class TableOCR(object):
         """
         # 将焦点标识取出来
         ys, xs = np.where(bitwise_and > 0)
-
 
         # 横纵坐标数组
         y_point_arr = []

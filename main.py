@@ -6,7 +6,7 @@ import numpy as np
 from skimage import morphology
 import paddle
 from paddleocr import PaddleOCR
-from test2 import recognize_orc
+# from test2 import recognize_orc
 ocr = PaddleOCR(use_angle_cls=True, lang="ch",rec_model_dir="./inference/ch_PP-OCRv4_rec_infer")
 
 class TableOCR(object):
